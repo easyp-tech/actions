@@ -18,20 +18,30 @@ if [ -z "$2" ]; then
   exit 1
 fi
 
-# Запуск линтера и запись вывода в переменную
+# Запуск линтера и сохранение вывода в переменную
 OUTPUT=$(easyp lint -p $2)
 echo "$OUTPUT"
 
-# Проверка OUTPUT на наличие шаблона, указывающего на ошибку
-if echo "$OUTPUT" | grep -q "CODE_"; then
-  echo "Linting errors found"
-  # Выводим ошибки в формате, который GitHub Actions распознает как аннотации
-  echo "$OUTPUT" | grep "CODE_" | while read -r line; do
+# Переменная для отслеживания наличия ошибок
+ERROR_DETECTED=0
+
+# Анализируем каждую строку вывода
+echo "$OUTPUT" | while read -r line; do
+  # Проверяем, содержит ли строка путь к файлу и номер строки, что указывает на ошибку
+  if echo "$line" | grep -q ":[0-9]\+:[0-9]\+:"; then
+    ERROR_DETECTED=1
+    # Извлекаем данные из строки
     FILE_PATH=$(echo "$line" | cut -d: -f1)
     LINE=$(echo "$line" | cut -d: -f2)
-    MESSAGE=$(echo "$line" | cut -d' ' -f3-)
-    echo "::error file=$FILE_PATH,line=$LINE::$(echo $MESSAGE)"
-  done
+    COLUMN=$(echo "$line" | cut -d: -f3)
+    MESSAGE=$(echo "$line" | cut -d: -f4-)
+    # Создаем аннотацию ошибки для GitHub Actions
+    echo "::error file=$FILE_PATH,line=$LINE,col=$COLUMN::$MESSAGE"
+  fi
+done
+
+# Если были обнаружены ошибки, завершаем с ошибкой
+if [ "$ERROR_DETECTED" -eq 1 ]; then
   exit 1
 fi
 
