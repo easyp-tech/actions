@@ -1,6 +1,10 @@
 name: 'EasyP Lint action'
 description: 'Run EasyP linter on specified directory'
 inputs:
+  version:
+    description: 'Version of EasyP to install'
+    required: false
+    default: 'latest'
   directory:
     description: 'Directory to run linters on'
     required: true
@@ -9,6 +13,7 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
+    - ${{ inputs.version }}
     - ${{ inputs.directory }}
 branding:
   icon: 'check-circle'
