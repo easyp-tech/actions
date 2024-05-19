@@ -26,7 +26,6 @@ errors_emitted="false"
 
 # Process each line of the output
 while IFS= read -r line; do
-  echo "Processing line: $line"
   file=$(echo "$line" | awk -F: '{print $1}')
   line_number=$(echo "$line" | awk -F: '{print $2}')
   column=$(echo "$line" | awk -F: '{print $3}')
