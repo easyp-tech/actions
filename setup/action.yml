@@ -1,0 +1,15 @@
+name: 'EasyP Install Action'
+description: 'Install EasyP tool'
+inputs:
+  version:
+    description: 'Version of EasyP to install'
+    required: false
+    default: 'latest'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.version }}
+branding:
+  icon: 'package'
+  color: 'blue'

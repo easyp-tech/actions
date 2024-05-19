@@ -1,0 +1,15 @@
+name: 'EasyP Lint Action'
+description: 'Run EasyP linter on specified directory'
+inputs:
+  directory:
+    description: 'Directory to run linters on'
+    required: true
+    default: '.'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.directory }}
+branding:
+  icon: 'check-circle'
+  color: 'blue'
