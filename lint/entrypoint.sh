@@ -23,11 +23,8 @@ output=$(easyp lint -p "$2")
 
 # Emit GitHub Actions error logs
 
-# for format 'echo "::error file=app.js,line=1,col=5::Missing semicolon"'
-# example currency/v1/currency.proto:321:3:CODE_ZWR: enum value comment is empty
-# will be converted to
-# echo "::error file=currency/v1/currency.proto,line=321,col=3::CODE_ZWR: enum value comment is empty"
-# must ignore not matching lines
+# Initialize a variable to track if any errors were emitted
+errors_emitted=false
 
 # Process each line of the output
 echo "$output" | while IFS= read -r line; do
@@ -39,8 +36,15 @@ echo "$output" | while IFS= read -r line; do
   if [ -n "$file" ] && [ -n "$line_number" ] && [ -n "$column" ] && [ -n "$message" ]; then
     # If the line matches the format file:line:column:message, format it for GitHub Actions
     echo "::error file=$file,line=$line_number,col=$column::$message"
+    # Set the errors_emitted variable to true
+    errors_emitted=true
   else
     # If the line does not match the expected format, print it as is
     echo "$line"
   fi
 done
+
+# If any errors were emitted, exit with code 1
+if [ "$errors_emitted" = true ]; then
+  exit 1
+fi
