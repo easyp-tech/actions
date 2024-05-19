@@ -22,7 +22,7 @@ if [ -z "$2" ]; then
 fi
 
 # Run EasyP linter and format its output
-output=$(easyp lint -p "$2")
+output=$(easyp lint -p "$2" 2>&1)
 
 # Emit GitHub Actions error logs
 
