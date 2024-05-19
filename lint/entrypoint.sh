@@ -19,7 +19,7 @@ if [ -z "$2" ]; then
 fi
 
 # Запуск линтера и запись вывода в файл
-OUTPUT_FILE="/github/workspace/easyp_lint_output.txt"
+OUTPUT_FILE="./easyp_lint_output.txt"
 easyp lint -p "$2" > "$OUTPUT_FILE"
 
 # Проверяем, обнаружены ли ошибки
