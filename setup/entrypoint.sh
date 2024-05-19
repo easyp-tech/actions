@@ -1,4 +1,6 @@
 #!/bin/sh -l
 
-# Install EasyP
-go install -v github.com/easyp-tech/easyp/cmd/easyp@$1
+export PATH=$PATH:/usr/local/go/bin
+
+# Установка EasyP
+go install github.com/easyp-tech/easyp/cmd/easyp@v0.2

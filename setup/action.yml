@@ -1,5 +1,5 @@
-name: 'EasyP Install Action'
-description: 'Install EasyP tool'
+name: 'EasyP setup action'
+description: 'setup EasyP tool'
 inputs:
   version:
     description: 'Version of EasyP to install'

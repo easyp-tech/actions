@@ -1,4 +1,4 @@
-name: 'EasyP Lint Action'
+name: 'EasyP Lint action'
 description: 'Run EasyP linter on specified directory'
 inputs:
   directory:
