@@ -41,10 +41,8 @@ while IFS= read -r line; do
   fi
 done < output.txt
 
-echo $errors_emitted
-
 # If any errors were emitted, exit with code 1
 if [ $errors_emitted = true ]; then
-  echo "Errors were emitted during linting."
+  echo $(cat output.txt)
   exit 1
 fi
