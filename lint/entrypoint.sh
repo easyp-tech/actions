@@ -26,6 +26,7 @@ errors_emitted="false"
 
 # Process each line of the output
 while IFS= read -r line; do
+  echo "$line"
   file=$(echo "$line" | awk -F: '{print $1}')
   line_number=$(echo "$line" | awk -F: '{print $2}')
   column=$(echo "$line" | awk -F: '{print $3}')
@@ -42,6 +43,5 @@ done < output.txt
 
 # If any errors were emitted, exit with code 1
 if [ $errors_emitted = true ]; then
-  echo $(cat output.txt)
   exit 1
 fi
