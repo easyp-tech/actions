@@ -27,14 +27,13 @@ output=$(easyp lint -p "$2")
 errors_emitted=false
 
 # Process each line of the output
-while IFS= read -r line; do
+echo "$output" | while IFS= read -r line; do
   echo "Processing line: $line"
   file=$(echo "$line" | awk -F: '{print $1}')
   line_number=$(echo "$line" | awk -F: '{print $2}')
   column=$(echo "$line" | awk -F: '{print $3}')
-  message=$(echo "$line" | awk -F: '{print $4}')
-  echo "Parsed values: file=$file, line_number=$line_number, column=$column, message=$message"
-  if [ -n "$file" ] && [ -n "$line_number" ] && [ -n "$column" ]; then
+  message=$(echo "$line" | awk -F: '{print $4 $5}')
+  if [ -n "$file" ] && [ -n "$line_number" ] && [ -n "$column" ] && [ -n "$message" ]; then
     # If the line matches the format file:line:column:message, format it for GitHub Actions
     echo "::error file=$file,line=$line_number,col=$column::$message"
     # Set the errors_emitted variable to true
@@ -43,9 +42,10 @@ while IFS= read -r line; do
     # If the line does not match the expected format, print it as is
     echo "$line"
   fi
-done <<< "$output"
+done
 
 # If any errors were emitted, exit with code 1
 if [ "$errors_emitted" = true ]; then
+  echo "Errors were emitted during linting."
   exit 1
 fi
