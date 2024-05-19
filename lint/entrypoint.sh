@@ -1,4 +1,4 @@
-#!/bin/bash -l
+#!/bin/sh -l
 
 export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:/go/bin
@@ -32,9 +32,13 @@ output=$(easyp lint -p "$2")
 # Process each line of the output
 echo "$output" | while IFS= read -r line; do
   echo "Processing line: $line"
-  if [[ $line =~ ^(.+):([0-9]+):([0-9]+):(.+)$ ]]; then
+  file=$(echo "$line" | awk -F: '{print $1}')
+  line_number=$(echo "$line" | awk -F: '{print $2}')
+  column=$(echo "$line" | awk -F: '{print $3}')
+  message=$(echo "$line" | awk -F: '{print $4}')
+  if [ -n "$file" ] && [ -n "$line_number" ] && [ -n "$column" ] && [ -n "$message" ]; then
     # If the line matches the format file:line:column:message, format it for GitHub Actions
-    echo "::error file=${BASH_REMATCH[1]},line=${BASH_REMATCH[2]},col=${BASH_REMATCH[3]}::${BASH_REMATCH[4]}"
+    echo "::error file=$file,line=$line_number,col=$column::$message"
   else
     # If the line does not match the expected format, print it as is
     echo "$line"
