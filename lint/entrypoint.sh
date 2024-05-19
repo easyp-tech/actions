@@ -1,7 +1,5 @@
 #!/bin/sh -l
 
-set -euo pipefail
-
 export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:/go/bin
 
