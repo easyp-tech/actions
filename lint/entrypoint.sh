@@ -21,7 +21,7 @@ if [ -z "$2" ]; then
 fi
 
 # Run EasyP linter and format its output
-output=$(easyp lint -p "$2" 2>&1)
+output=$(easyp lint -p "$2")
 
 # Emit GitHub Actions error logs
 
@@ -33,6 +33,7 @@ output=$(easyp lint -p "$2" 2>&1)
 
 # Process each line of the output
 echo "$output" | while IFS= read -r line; do
+  echo "Processing line: $line"
   if [[ $line =~ ^(.+):([0-9]+):([0-9]+):(.+)$ ]]; then
     # If the line matches the format file:line:column:message, format it for GitHub Actions
     echo "::error file=${BASH_REMATCH[1]},line=${BASH_REMATCH[2]},col=${BASH_REMATCH[3]}::${BASH_REMATCH[4]}"
