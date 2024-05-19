@@ -19,18 +19,21 @@ if [ -z "$2" ]; then
 fi
 
 # Запуск линтера и запись вывода в файл
-OUTPUT_FILE=easyp_lint_output.txt
+OUTPUT_FILE="/github/workspace/easyp_lint_output.txt"
 easyp lint -p "$2" > "$OUTPUT_FILE"
 
 # Проверяем, обнаружены ли ошибки
 if grep -q ":" "$OUTPUT_FILE"; then
-  # Ошибки найдены, печатаем их и создаем аннотации для GitHub Actions
+  # Ошибки найдены, создаем аннотации для GitHub Actions
   while IFS= read -r line; do
-    FILE_PATH=$(echo "$line" | cut -d: -f1)
-    LINE=$(echo "$line" | cut -d: -f2)
-    COLUMN=$(echo "$line" | cut -d: -f3)
-    MESSAGE=$(echo "$line" | cut -d: -f4-)
-    echo "::error file=$FILE_PATH,line=$LINE,col=$COLUMN::$MESSAGE"
+    if echo "$line" | grep -q ":"; then
+      FILE_PATH=$(echo "$line" | awk -F ':' '{print $1}')
+      LINE=$(echo "$line" | awk -F ':' '{print $2}')
+      COLUMN=$(echo "$line" | awk -F ':' '{print $3}')
+      MESSAGE=$(echo "$line" | awk -F ':' '{print $4}')
+      # Создаем аннотацию ошибки для GitHub Actions
+      echo "::error file=$FILE_PATH,line=$LINE,col=$COLUMN::$MESSAGE"
+    fi
   done < "$OUTPUT_FILE"
   exit 1
 else
