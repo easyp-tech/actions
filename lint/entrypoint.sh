@@ -1,29 +1,36 @@
 #!/bin/sh -l
 
+set -euo pipefail
+IFS=$'\n\t'
+
 export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:/go/bin
 
-# Установка EasyP указанной версии
+# Install EasyP with the given version
 go install github.com/easyp-tech/easyp/cmd/easyp@$1
 
-# Проверка, что EasyP установлен
-if! command -v easyp > /dev/null
-then
+# Check if EasyP installed successfully
+if ! command -v easyp > /dev/null; then
   echo "EasyP installation failed or EasyP is not in the PATH"
   exit 1
 fi
 
-# Проверка, что указан каталог
-if [ -z "$2" ]
-then
+# Check if a directory was provided
+if [ -z "$2" ]; then
   echo "Please provide the directory path to lint."
   exit 1
 fi
 
-# Запуск линтера
-easyp lint -p $2 | while IFS=: read -r filepath line column message; do
-  # Detect errors based on the format of the error message
-  if echo "$message" | grep -qE '^[A-Za-z_][A-Za-z0-9_]*: '; then
-    echo "::error file=$filepath,line=$line,column=$column::$message"
+# Run EasyP linter and format its output
+output=$(easyp lint -p "$2")
+
+# Emit GitHub Actions error logs
+while IFS= read -r line; do
+  if [[ "$line" =~ ^([^[:space:]]+)[[:space:]]*:([[:digit:]]+):([[:digit:]]+).* ]]; then
+    file=${BASH_REMATCH[1]}
+    line=${BASH_REMATCH[2]}
+    col=${BASH_REMATCH[3]}
+    issue=$(printf "%s:%s:%s Missing semicolon" "$file" "$line" "$col")
+    echo "::error file=$file,line=$line,col=$col::$issue"
   fi
-done
+done <<< "$output"
