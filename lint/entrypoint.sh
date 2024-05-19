@@ -18,17 +18,22 @@ if [ -z "$2" ]; then
   exit 1
 fi
 
-# Запуск линтера и вывод ошибок в формате, понятном GitHub Actions
-easyp lint -p $2 | while IFS= read -r line; do
-  # Предполагаем, что формат строки ошибки: filepath:line:col:CODE: message
-  FILE_PATH=$(echo "$line" | cut -d: -f1)
-  LINE=$(echo "$line" | cut -d: -f2)
-  COLUMN=$(echo "$line" | cut -d: -f3)
-  MESSAGE=$(echo "$line" | cut -d: -f4-)
-  echo "::error file=$FILE_PATH,line=$LINE,col=$COLUMN::$MESSAGE"
-done
+# Запуск линтера и запись вывода в файл
+easyp lint -p $2 > easyp_lint_output.txt
 
-# Если вы хотите завершить работу с ненулевым статусом в случае обнаружения ошибок
-if [ -s easyp_lint_output.txt ]; then
+# Проверка на наличие ошибок
+if grep -q "ERROR" easyp_lint_output.txt; then
+  while IFS= read -r line; do
+    # Предполагаем, что формат строки ошибки: filepath:line:col:ERROR: message
+    FILE_PATH=$(echo "$line" | cut -d: -f1)
+    LINE=$(echo "$line" | cut -d: -f2)
+    COLUMN=$(echo "$line" | cut -d: -f3)
+    MESSAGE=$(echo "$line" | cut -d: -f4-)
+    # Вывод ошибок в формате, понятном GitHub Actions
+    echo "::error file=$FILE_PATH,line=$LINE,col=$COLUMN::$MESSAGE"
+  done < easyp_lint_output.txt
   exit 1
 fi
+
+# Если ошибок не обнаружено, скрипт завершится успешно
+exit 0
