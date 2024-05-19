@@ -18,20 +18,20 @@ if [ -z "$2" ]; then
   exit 1
 fi
 
-# Запуск линтера и запись вывода в файл
-easyp lint -p $2 > easyp_lint_output.txt
+# Запуск линтера и запись вывода в переменную
+OUTPUT=$(easyp lint -p $2)
+echo "$OUTPUT"
 
-# Проверка на наличие ошибок
-if grep -q "ERROR" easyp_lint_output.txt; then
-  while IFS= read -r line; do
-    # Предполагаем, что формат строки ошибки: filepath:line:col:ERROR: message
+# Проверка OUTPUT на наличие шаблона, указывающего на ошибку
+if echo "$OUTPUT" | grep -q "CODE_"; then
+  echo "Linting errors found"
+  # Выводим ошибки в формате, который GitHub Actions распознает как аннотации
+  echo "$OUTPUT" | grep "CODE_" | while read -r line; do
     FILE_PATH=$(echo "$line" | cut -d: -f1)
     LINE=$(echo "$line" | cut -d: -f2)
-    COLUMN=$(echo "$line" | cut -d: -f3)
-    MESSAGE=$(echo "$line" | cut -d: -f4-)
-    # Вывод ошибок в формате, понятном GitHub Actions
-    echo "::error file=$FILE_PATH,line=$LINE,col=$COLUMN::$MESSAGE"
-  done < easyp_lint_output.txt
+    MESSAGE=$(echo "$line" | cut -d' ' -f3-)
+    echo "::error file=$FILE_PATH,line=$LINE::$(echo $MESSAGE)"
+  done
   exit 1
 fi
 
