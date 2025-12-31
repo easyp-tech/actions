@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: easyp-tech/actions/lint@v1
         with:
-          version: v0.12.0
+          version: v0.12.2
 ```
 
 ### Breaking Change Detection
@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
       - uses: easyp-tech/actions/breaking@v1
         with:
-          version: v0.12.0
+          version: v0.12.2
           against: origin/main
 ```
 
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: easyp-tech/actions/lint@v1
         with:
-          version: v0.12.0
+          version: v0.12.2
 
   breaking:
     name: Breaking Changes
@@ -78,7 +78,7 @@ jobs:
           fetch-depth: 0
       - uses: easyp-tech/actions/breaking@v1
         with:
-          version: v0.12.0
+          version: v0.12.2
           against: origin/main
 ```
 
