@@ -1,0 +1,77 @@
+name: 'EasyP Lint action'
+description: 'Run EasyP linter on protobuf files'
+
+inputs:
+  version:
+    description: 'EasyP version (docker image tag)'
+    required: false
+    default: 'latest'
+  directory:
+    description: 'Directory to lint'
+    required: false
+    default: '.'
+  config:
+    description: 'Path to config file'
+    required: false
+    default: ''
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Pull EasyP image
+      shell: bash
+      run: docker pull ghcr.io/easyp-tech/easyp:${{ inputs.version }}
+
+    - name: Download dependencies
+      shell: bash
+      run: |
+        GLOBAL_ARGS=""
+        if [ -n "${{ inputs.config }}" ]; then
+          GLOBAL_ARGS="--cfg=/workspace/${{ inputs.config }}"
+        fi
+
+        docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          -e EASYPPATH=/workspace/.easyp \
+          ghcr.io/easyp-tech/easyp:${{ inputs.version }} \
+          $GLOBAL_ARGS mod download
+
+    - name: Run EasyP Lint
+      shell: bash
+      run: |
+        GLOBAL_ARGS=""
+        if [ -n "${{ inputs.config }}" ]; then
+          GLOBAL_ARGS="--cfg=/workspace/${{ inputs.config }}"
+        fi
+
+        OUTPUT=$(docker run --rm \
+          -v ${{ github.workspace }}:/workspace \
+          -w /workspace \
+          -e EASYPPATH=/workspace/.easyp \
+          ghcr.io/easyp-tech/easyp:${{ inputs.version }} \
+          $GLOBAL_ARGS lint --format=json --path=${{ inputs.directory }} 2>&1) || true
+
+        # Trim whitespace and check if output is empty
+        TRIMMED=$(echo "$OUTPUT" | tr -d '[:space:]')
+        if [ -z "$TRIMMED" ]; then
+          echo "✅ No linting errors found"
+          exit 0
+        fi
+
+        # Check if output is valid JSON (first char should be '{')
+        FIRST_CHAR=$(echo "$OUTPUT" | head -c1)
+        if [ "$FIRST_CHAR" != "{" ]; then
+          echo "❌ EasyP error:"
+          echo "$OUTPUT"
+          exit 1
+        fi
+
+        # Parse JSON Lines and output in GitHub format
+        echo "$OUTPUT" | jq -r '"::error file=\(.Path),line=\(.Position.Line),col=\(.Position.Column),title=\(.RuleName)::\(.Message)"'
+
+        exit 1
