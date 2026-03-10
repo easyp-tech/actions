@@ -60,35 +60,76 @@ runs:
           GLOBAL_ARGS+=( "--cfg=/workspace/${{ inputs.config }}" )
         fi
 
-        # EasyP v0.13+ moved --format to a global flag; v0.12.x keeps it on the subcommand.
-        COMMAND_ARGS=( breaking "--against=${{ inputs.against }}" "--path=${{ inputs.directory }}" )
-        if docker run "${DOCKER_ARGS[@]}" ghcr.io/easyp-tech/easyp:${{ inputs.version }} --help 2>/dev/null | grep -q -- '--format'; then
-          GLOBAL_ARGS+=( "--format=json" )
-        else
-          COMMAND_ARGS=( breaking "--format=json" "--against=${{ inputs.against }}" "--path=${{ inputs.directory }}" )
+        echo "Fetching branches and tags from origin"
+        git fetch --prune --tags origin "+refs/heads/*:refs/remotes/origin/*" >/dev/null 2>&1
+
+        AGAINST_REF="${{ inputs.against }}"
+        RESOLVED_AGAINST="$AGAINST_REF"
+        if [[ "$AGAINST_REF" == origin/* ]]; then
+          TARGET_BRANCH="${AGAINST_REF#origin/}"
+          if git rev-parse --verify --quiet "origin/$TARGET_BRANCH^{commit}" >/dev/null; then
+            git branch -f "$TARGET_BRANCH" "origin/$TARGET_BRANCH" >/dev/null 2>&1
+            RESOLVED_AGAINST="$TARGET_BRANCH"
+          fi
+        elif ! git rev-parse --verify --quiet "$AGAINST_REF^{commit}" >/dev/null; then
+          TARGET_BRANCH="$AGAINST_REF"
+          if git rev-parse --verify --quiet "origin/$TARGET_BRANCH^{commit}" >/dev/null; then
+            git branch -f "$TARGET_BRANCH" "origin/$TARGET_BRANCH" >/dev/null 2>&1
+          fi
         fi
 
-        OUTPUT=$(docker run "${DOCKER_ARGS[@]}" \
-          ghcr.io/easyp-tech/easyp:${{ inputs.version }} \
-          "${GLOBAL_ARGS[@]}" \
-          "${COMMAND_ARGS[@]}" 2>&1) || true
+        BASE_GLOBAL_ARGS=( "${GLOBAL_ARGS[@]}" )
+        GLOBAL_ARGS=( "${BASE_GLOBAL_ARGS[@]}" "--format=json" )
+        COMMAND_ARGS=( breaking "--against=$RESOLVED_AGAINST" "--path=${{ inputs.directory }}" )
+
+        STDOUT_FILE=$(mktemp)
+        STDERR_FILE=$(mktemp)
+        trap 'rm -f "$STDOUT_FILE" "$STDERR_FILE"' EXIT
+
+        run_easyp() {
+          : >"$STDOUT_FILE"
+          : >"$STDERR_FILE"
+
+          if docker run "${DOCKER_ARGS[@]}" \
+            ghcr.io/easyp-tech/easyp:${{ inputs.version }} \
+            "${GLOBAL_ARGS[@]}" \
+            "${COMMAND_ARGS[@]}" >"$STDOUT_FILE" 2>"$STDERR_FILE"; then
+            EXIT_CODE=0
+          else
+            EXIT_CODE=$?
+          fi
+        }
+
+        run_easyp
+        if [ "$EXIT_CODE" -ne 0 ] && grep -q 'flag provided but not defined: -format' "$STDERR_FILE"; then
+          GLOBAL_ARGS=( "${BASE_GLOBAL_ARGS[@]}" )
+          COMMAND_ARGS=( breaking "--format=json" "--against=$RESOLVED_AGAINST" "--path=${{ inputs.directory }}" )
+          run_easyp
+        fi
 
         # Trim whitespace and check if output is empty
-        TRIMMED=$(echo "$OUTPUT" | tr -d '[:space:]')
+        TRIMMED=$(tr -d '[:space:]' < "$STDOUT_FILE")
         if [ -z "$TRIMMED" ]; then
-          echo "✅ No breaking changes detected"
-          exit 0
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "✅ No breaking changes detected"
+            exit 0
+          fi
+
+          echo "❌ EasyP error:"
+          cat "$STDERR_FILE"
+          exit "$EXIT_CODE"
         fi
 
         # Check if output is valid JSON (first char should be '{')
-        FIRST_CHAR=$(echo "$OUTPUT" | head -c1)
+        FIRST_CHAR=$(head -c1 "$STDOUT_FILE")
         if [ "$FIRST_CHAR" != "{" ]; then
           echo "❌ EasyP error:"
-          echo "$OUTPUT"
-          exit 1
+          cat "$STDERR_FILE"
+          cat "$STDOUT_FILE"
+          exit "$EXIT_CODE"
         fi
 
         # Parse JSON Lines and output in GitHub format
-        echo "$OUTPUT" | jq -r '"::error file=\(.Path),line=\(.Position.Line),col=\(.Position.Column),title=\(.RuleName)::\(.Message)"'
+        jq -r '"::error file=\(.Path),line=\(.Position.Line),col=\(.Position.Column),title=\(.RuleName)::\(.Message)"' < "$STDOUT_FILE"
 
         exit 1
