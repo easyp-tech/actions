@@ -48,19 +48,30 @@ runs:
     - name: Run EasyP Breaking Change Detection
       shell: bash
       run: |
-        GLOBAL_ARGS=""
+        DOCKER_ARGS=(
+          --rm
+          -v "${{ github.workspace }}:/workspace"
+          -w /workspace
+          -e EASYPPATH=/workspace/.easyp
+        )
+
+        GLOBAL_ARGS=()
         if [ -n "${{ inputs.config }}" ]; then
-          GLOBAL_ARGS="--cfg=/workspace/${{ inputs.config }}"
+          GLOBAL_ARGS+=( "--cfg=/workspace/${{ inputs.config }}" )
         fi
 
-        ARGS="breaking --format=json --against=${{ inputs.against }} --path=${{ inputs.directory }}"
+        # EasyP v0.13+ moved --format to a global flag; v0.12.x keeps it on the subcommand.
+        COMMAND_ARGS=( breaking "--against=${{ inputs.against }}" "--path=${{ inputs.directory }}" )
+        if docker run "${DOCKER_ARGS[@]}" ghcr.io/easyp-tech/easyp:${{ inputs.version }} --help 2>/dev/null | grep -q -- '--format'; then
+          GLOBAL_ARGS+=( "--format=json" )
+        else
+          COMMAND_ARGS=( breaking "--format=json" "--against=${{ inputs.against }}" "--path=${{ inputs.directory }}" )
+        fi
 
-        OUTPUT=$(docker run --rm \
-          -v ${{ github.workspace }}:/workspace \
-          -w /workspace \
-          -e EASYPPATH=/workspace/.easyp \
+        OUTPUT=$(docker run "${DOCKER_ARGS[@]}" \
           ghcr.io/easyp-tech/easyp:${{ inputs.version }} \
-          $GLOBAL_ARGS $ARGS 2>&1) || true
+          "${GLOBAL_ARGS[@]}" \
+          "${COMMAND_ARGS[@]}" 2>&1) || true
 
         # Trim whitespace and check if output is empty
         TRIMMED=$(echo "$OUTPUT" | tr -d '[:space:]')
