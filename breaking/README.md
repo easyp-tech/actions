@@ -206,7 +206,13 @@ with:
 
 (optional)
 
-Path to the EasyP configuration file.
+Path to the EasyP configuration file, relative to the repository root.
+
+The action places the flag for the EasyP version in the image. EasyP v0 and
+early v1 nightlies receive the global `--cfg` flag, which also applies to
+`mod download`. Later v1 builds receive `--config` after the command, and
+`mod download` reads `protobuf.mod`/`protobuf.lock` without it. With v1, pass
+a policy file such as `easyp.yaml` or `ci.easyp.yaml`, not `easyp.gen.yaml`.
 
 ```yaml
 uses: easyp-tech/actions/breaking@v1
