@@ -30,11 +30,27 @@ runs:
       shell: bash
       run: docker pull ghcr.io/easyp-tech/easyp:${{ inputs.version }}
 
+    - name: Detect config flag placement
+      id: config-flag
+      shell: bash
+      run: |
+        # EasyP v0 and early v1 nightlies take a global --cfg; later v1 builds
+        # take --config after the command and reject the global flag.
+        PLACEMENT=none
+        if [ -n "${{ inputs.config }}" ]; then
+          PLACEMENT=global
+          HELP=$(docker run --rm ghcr.io/easyp-tech/easyp:${{ inputs.version }} breaking --help 2>&1 || true)
+          if grep -qE -- '(^|[[:space:]])--config([[:space:]=]|$)' <<<"$HELP"; then
+            PLACEMENT=command
+          fi
+        fi
+        echo "placement=$PLACEMENT" >> "$GITHUB_OUTPUT"
+
     - name: Download dependencies
       shell: bash
       run: |
         GLOBAL_ARGS=""
-        if [ -n "${{ inputs.config }}" ]; then
+        if [ "${{ steps.config-flag.outputs.placement }}" = "global" ]; then
           GLOBAL_ARGS="--cfg=/workspace/${{ inputs.config }}"
         fi
 
@@ -56,9 +72,11 @@ runs:
         )
 
         GLOBAL_ARGS=()
-        if [ -n "${{ inputs.config }}" ]; then
-          GLOBAL_ARGS+=( "--cfg=/workspace/${{ inputs.config }}" )
-        fi
+        CONFIG_ARGS=()
+        case "${{ steps.config-flag.outputs.placement }}" in
+          global) GLOBAL_ARGS+=( "--cfg=/workspace/${{ inputs.config }}" ) ;;
+          command) CONFIG_ARGS+=( "--config=/workspace/${{ inputs.config }}" ) ;;
+        esac
 
         echo "Fetching branches and tags from origin"
         git fetch --prune --tags origin "+refs/heads/*:refs/remotes/origin/*" >/dev/null 2>&1
@@ -80,7 +98,7 @@ runs:
 
         BASE_GLOBAL_ARGS=( "${GLOBAL_ARGS[@]}" )
         GLOBAL_ARGS=( "${BASE_GLOBAL_ARGS[@]}" "--format=json" )
-        COMMAND_ARGS=( breaking "--against=$RESOLVED_AGAINST" "--path=${{ inputs.directory }}" )
+        COMMAND_ARGS=( breaking "${CONFIG_ARGS[@]}" "--against=$RESOLVED_AGAINST" "--path=${{ inputs.directory }}" )
 
         STDOUT_FILE=$(mktemp)
         STDERR_FILE=$(mktemp)
@@ -103,7 +121,7 @@ runs:
         run_easyp
         if [ "$EXIT_CODE" -ne 0 ] && grep -q 'flag provided but not defined: -format' "$STDERR_FILE"; then
           GLOBAL_ARGS=( "${BASE_GLOBAL_ARGS[@]}" )
-          COMMAND_ARGS=( breaking "--format=json" "--against=$RESOLVED_AGAINST" "--path=${{ inputs.directory }}" )
+          COMMAND_ARGS=( breaking "${CONFIG_ARGS[@]}" "--format=json" "--against=$RESOLVED_AGAINST" "--path=${{ inputs.directory }}" )
           run_easyp
         fi
 
